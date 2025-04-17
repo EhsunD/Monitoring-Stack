@@ -1,0 +1,58 @@
+---
+- name: Install Auditbeat using Local Package Files
+  hosts: all
+  become: yes
+  vars:
+    auditbeat_version: "8.11.2"
+    local_package_path: "/opt/auditbeat"  # Change this path to where you stored the files
+    elasticsearch_host: "http://localhost:9200"
+    api_key: "YOUR_GENERATED_API_KEY"  # Replace with actual API key
+  
+  tasks:
+
+    - name: Copy Auditbeat package to target (Debian)
+      copy:
+        src: "{{ local_package_path }}/auditbeat-{{ auditbeat_version }}-amd64.deb"
+        dest: "/tmp/auditbeat.deb"
+        mode: '0644'
+      when: ansible_os_family == "Debian"
+
+    - name: Install Auditbeat from local package (Debian)
+      apt:
+        deb: "/tmp/auditbeat.deb"
+      when: ansible_os_family == "Debian"
+
+    - name: Copy Auditbeat package to target (RHEL)
+      copy:
+        src: "{{ local_package_path }}/auditbeat-{{ auditbeat_version }}-x86_64.rpm"
+        dest: "/tmp/auditbeat.rpm"
+        mode: '0644'
+      when: ansible_os_family == "RedHat"
+
+    - name: Install Auditbeat from local package (RHEL)
+      yum:
+        name: "/tmp/auditbeat.rpm"
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Copy Auditbeat configuration file
+      template:
+        src: auditbeat.yml.j2
+        dest: /etc/auditbeat/auditbeat.yml
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Enable and Start Auditbeat Service
+      systemd:
+        name: auditbeat
+        enabled: yes
+        state: restarted
+
+    - name: Verify Auditbeat Status
+      shell: "systemctl status auditbeat --no-pager"
+      register: auditbeat_status
+      changed_when: false
+
+    - debug:
+        msg: "{{ auditbeat_status.stdout_lines }}"
