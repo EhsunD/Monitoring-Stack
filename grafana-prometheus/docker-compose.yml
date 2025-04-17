@@ -1,0 +1,72 @@
+version: '3'
+
+networks:
+  monitoring:
+    driver: bridge
+#    external: true
+#devices:
+#  - /dev/rtc:/dev/rtc
+volumes:
+  prometheus-data: {}
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.37.9
+    container_name: prometheus
+    environment:
+      - TZ=Asia/Tehran
+    networks:
+      - monitoring
+    ports:
+      - '9090:9090'
+    command:
+      - --storage.tsdb.retention.time=7d
+      - --config.file=/etc/prometheus/prometheus.yml
+    privileged: true
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+      - SYS_TIME
+  grafana:
+    image: grafana/grafana:6.7.2
+    user: "1000:1000"
+    container_name: grafana
+    networks:
+      - monitoring
+    environment:
+      TZ: UTC
+#      GF_SECURITY_ADMIN_USER: admin
+#      GF_SECURITY_ADMIN_PASSWORD: chengeme
+#      GF_DATASOURCES_DEFAULT_TYPE: prometheus
+#      GF_DATASOURCES_DEFAULT_URL: http://prometheus:9090
+#      GF_DATASOURCES_DEFAULT_ACCESS: proxy
+#/usr/share/grafana/public/img
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./grafana-data:/var/lib/grafana
+      - ./grafana-data/dashboards:/var/lib/grafana/dashboards
+      - ./grafana-data/provisioning:/etc/grafana/provisioning
+      - ./grafana.ini:/etc/grafana/grafana.ini
+      - ./grafana-data/newLogo.svg:/var/lib/grafana/grafana_icon1.svg
+      - ./grafana-data/newLogo.svg:/usr/share/grafana/public/img/grafana_icon.svg
+      - ./grafana-data/newLogo.svg:/usr/share/grafana/public/img/fav32.png 
+    privileged: true
+    depends_on:
+      - prometheus
+    privileged: true
+  node_exporter_1:
+    image: prom/node-exporter:v1.5.0
+    container_name: node_exporter
+    ports:
+      - '9100:9100'
+ #   network_mode: host
+    pid: host
+  node_exporter_2:
+    image: prom/node-exporter:v1.5.0
+    ports:
+      - '9101:9101'
+#    network_mode: host
+    pid: host
